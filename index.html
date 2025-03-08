@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ciudad con Edificios, Ventanas, Puertas y Árboles Variados</title>
+    <title>Ciudad 3D con Edificios, Ventanas, Puertas y Árboles con Follaje</title>
     <style>
         body { margin: 0; }
         canvas { display: block; }
@@ -171,8 +171,42 @@
             cars.push(car);
         }
 
-        // Función para crear árboles
-        function createTree() {
+        // Función para crear árboles con follaje de esferas
+        function createTreeWithSpheres() {
+            const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.3, 5); // Tronco del árbol
+            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }); // Color marrón
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+
+            const tree = new THREE.Group();
+            tree.add(trunk);
+
+            // Crear follaje con esferas
+            const foliageColor = 0x228B22; // Color verde
+            const foliageMaterial = new THREE.MeshPhongMaterial({ color: foliageColor });
+
+            // Crear varias esferas para el follaje
+            const sphere1 = new THREE.Mesh(new THREE.SphereGeometry(2.5, 8, 8), foliageMaterial);
+            sphere1.position.set(0, 5, 0); // Esfera central
+
+            const sphere2 = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), foliageMaterial);
+            sphere2.position.set(-2, 7, -1); // Esfera lateral
+
+            const sphere3 = new THREE.Mesh(new THREE.SphereGeometry(2, 8, 8), foliageMaterial);
+            sphere3.position.set(2, 7, 1); // Esfera lateral
+
+            const sphere4 = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), foliageMaterial);
+            sphere4.position.set(-1, 9, -2); // Esfera superior
+
+            const sphere5 = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), foliageMaterial);
+            sphere5.position.set(1, 9, 2); // Esfera superior
+
+            tree.add(sphere1, sphere2, sphere3, sphere4, sphere5);
+
+            return tree;
+        }
+
+        // Función para crear árboles con follaje de cono
+        function createTreeWithCone() {
             const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.3, 5); // Tronco del árbol
             const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }); // Color marrón
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
@@ -190,18 +224,21 @@
 
         // Generar árboles a ambos lados de la calle
         const trees = [];
-        const treeSpacing = 50; // Espacio entre árboles (aumentado)
+        const treeSpacing = 50; // Espacio entre árboles
         for (let z = -400; z <= 400; z += treeSpacing) {
-            const treeLeft = createTree();
+            const useSpheres = Math.random() > 0.5; // Aleatoriamente decidir si usar esferas o cono
+            const tree = useSpheres ? createTreeWithSpheres() : createTreeWithCone();
+
             const scale = 0.8 + Math.random() * 0.4; // Tamaño aleatorio entre 0.8 y 1.2
-            treeLeft.scale.set(scale, scale, scale); // Aplicar escala aleatoria
+            tree.scale.set(scale, scale, scale); // Aplicar escala aleatoria
+
+            // Colocar árboles a ambos lados de la calle
+            const treeLeft = tree.clone();
             treeLeft.position.set(-(streetWidth / 2 + 10), 0, z);
             scene.add(treeLeft);
             trees.push(treeLeft);
 
-            const treeRight = createTree();
-            const scaleRight = 3.8 + Math.random() * 0.4; // Tamaño aleatorio entre 0.8 y 1.2
-            treeRight.scale.set(scaleRight, scaleRight, scaleRight); // Aplicar escala aleatoria
+            const treeRight = tree.clone();
             treeRight.position.set(streetWidth / 2 + 10, 0, z);
             scene.add(treeRight);
             trees.push(treeRight);
