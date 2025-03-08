@@ -1,69 +1,306 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Esfera Girando con Three.js</title>
+    <title>Ciudad 3D con Edificios, Ventanas, Puertas y Árboles Variados</title>
     <style>
         body { margin: 0; }
         canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <div id="info">¡Haz clic en un edificio, farola, carro o árbol!</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Escena, cámara y renderizador
+        // Configuración inicial
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Crear una esfera
-        const geometry = new THREE.SphereGeometry(5, 32, 32);
-        const material = new THREE.MeshBasicMaterial({ color: 0x00ff0, wireframe: true });
-        const sphere = new THREE.Mesh(geometry, material);
-        scene.add(sphere);
+        // Crear cielo
+        const skyTexture = new THREE.TextureLoader().load('https://i0.wp.com/imgs.hipertextual.com/wp-content/uploads/2021/04/kumiko-shimizu-1suwecgz5ks-unsplash-scaled.jpeg?resize=1200%2C800&quality=70&strip=all&ssl=1'); // Textura de cielo con nubes
+        const skyGeometry = new THREE.SphereGeometry(500, 32, 32); // Esfera grande
+        const skyMaterial = new THREE.MeshBasicMaterial({
+            map: skyTexture,
+            side: THREE.BackSide // Mostrar la textura en el interior de la esfera
+        });
+        const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+        scene.add(sky);
 
-        // Cargar la fuente para el texto
-        const fontLoader = new THREE.FontLoader();
-        fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
-            const textGeometry = new THREE.TextGeometry('Prueba1', {
-                font: font,
-                size: 2,
-                height: 0.5,
-            });
-            const textMaterial = new THREE.MeshBasicMaterial({ color: 0x0ff00 });
-            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-            textMesh.position.set(-4, 0, 5); // Posicionar el texto sobre la esfera
-            scene.add(textMesh);
+        // Crear calle
+        const streetGeometry = new THREE.PlaneGeometry(20, 1000);  // Calle más angosta
+        const streetMaterial = new THREE.MeshPhongMaterial({
+            color: 0x333333,
+            side: THREE.DoubleSide
+        });
+        const street = new THREE.Mesh(streetGeometry, streetMaterial);
+        street.rotation.x = Math.PI / 2;
+        street.position.y = -0.5;
+        scene.add(street);
+
+        // Función para crear edificios con ventanas y puertas
+        function createBuilding(length, height, width, color, isLeftSide) {
+            const buildingGeometry = new THREE.BoxGeometry(length, height, width);
+            const buildingMaterial = new THREE.MeshPhongMaterial({ color: color });
+            const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+
+            // Crear ventanas
+            const windowColor = 0xffffff; // Color blanco para las ventanas
+            const windowWidth = 1; // Ancho de la ventana
+            const windowHeight = 1; // Alto de la ventana
+            const windowDepth = 0.2; // Profundidad de la ventana
+
+            const rows = Math.floor(height / 4); // Número de filas de ventanas
+            const cols = Math.floor(length / 2); // Número de columnas de ventanas
+
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const window = new THREE.Mesh(
+                        new THREE.BoxGeometry(windowWidth, windowHeight, windowDepth),
+                        new THREE.MeshPhongMaterial({ color: windowColor })
+                    );
+                    // Posicionar ventanas en la fachada frontal
+                    window.position.set(
+                        -length / 2 + j * 2 + 1, // Posición X
+                        -height / 2 + i * 4 + 2,  // Posición Y
+                        isLeftSide ? width / 2 + 0.1 : -width / 2 - 0.1 // Posición Z (fachada frontal)
+                    );
+                    building.add(window); // Añadir ventana al edificio
+                }
+            }
+
+            // Crear puerta
+            const doorColor = 0x8B4513; // Color marrón para la puerta
+            const doorWidth = 2; // Ancho de la puerta
+            const doorHeight = 3; // Alto de la puerta
+            const doorDepth = 0.2; // Profundidad de la puerta
+
+            const door = new THREE.Mesh(
+                new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth),
+                new THREE.MeshPhongMaterial({ color: doorColor })
+            );
+            // Posicionar puerta en la fachada frontal
+            door.position.set(
+                0, // Posición X (centro del edificio)
+                -height / 2 + doorHeight / 2, // Posición Y (parte inferior)
+                isLeftSide ? width / 2 + 0.1 : -width / 2 - 0.1 // Posición Z (fachada frontal)
+            );
+            building.add(door); // Añadir puerta al edificio
+
+            return building;
+        }
+
+        // Generar edificios paralelos a la calle
+        const buildingColors = [0x2980b9, 0x2c3e50, 0x16a085, 0x8e44ad];
+        const streetWidth = 20;
+        const buildingSpacing = 40;
+        const buildings = []; // Array para almacenar los edificios
+
+        for (let z = -400; z <= 400; z += buildingSpacing) {
+            // Lado izquierdo
+            const heightLeft = Math.random() * 30 + 20;
+            const buildingLeft = createBuilding(15, heightLeft, 30, buildingColors[Math.floor(Math.random() * buildingColors.length)], true);
+            buildingLeft.position.set(-(streetWidth / 2 + 20), heightLeft / 2 - 0.5, z);
+            scene.add(buildingLeft);
+            buildings.push(buildingLeft); // Añadir edificio al array
+
+            // Lado derecho
+            const heightRight = Math.random() * 30 + 20;
+            const buildingRight = createBuilding(15, heightRight, 30, buildingColors[Math.floor(Math.random() * buildingColors.length)], false);
+            buildingRight.position.set(streetWidth / 2 + 20, heightRight / 2 - 0.5, z);
+            scene.add(buildingRight);
+            buildings.push(buildingRight); // Añadir edificio al array
+        }
+
+        // Función para crear farolas
+        function createStreetLight() {
+            const poleGeometry = new THREE.BoxGeometry(0.5, 10, 0.5); // Prisma delgado y alto
+            const poleMaterial = new THREE.MeshPhongMaterial({ color: 0x555555 });
+            const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+
+            const lightGeometry = new THREE.BoxGeometry(2, 1, 2); // Parte superior de la farola
+            const lightMaterial = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+            const light = new THREE.Mesh(lightGeometry, lightMaterial);
+            light.position.y = 5; // Colocar la luz encima del poste
+
+            const streetLight = new THREE.Group();
+            streetLight.add(pole);
+            streetLight.add(light);
+            return streetLight;
+        }
+
+        // Generar farolas a ambos lados de la calle
+        const streetLights = [];
+        for (let z = -400; z <= 400; z += 20) {
+            const streetLightLeft = createStreetLight();
+            streetLightLeft.position.set(-(streetWidth / 2 + 5), 0, z);
+            scene.add(streetLightLeft);
+            streetLights.push(streetLightLeft);
+
+            const streetLightRight = createStreetLight();
+            streetLightRight.position.set(streetWidth / 2 + 5, 0, z);
+            scene.add(streetLightRight);
+            streetLights.push(streetLightRight);
+        }
+
+        // Función para crear carros
+        function createCar(color) {
+            const carGeometry = new THREE.BoxGeometry(3, 2, 5); // Prisma para el carro
+            const carMaterial = new THREE.MeshPhongMaterial({ color: color });
+            const car = new THREE.Mesh(carGeometry, carMaterial);
+            return car;
+        }
+
+        // Generar carros en la calle
+        const cars = [];
+        const carColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffaa00];
+        for (let z = -400; z <= 400; z += 50) {
+            const car = createCar(carColors[Math.floor(Math.random() * carColors.length)]);
+            car.position.set(Math.random() * 10 - 5, 1, z); // Posición aleatoria en la calle
+            scene.add(car);
+            cars.push(car);
+        }
+
+        // Función para crear árboles
+        function createTree() {
+            const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.3, 5); // Tronco del árbol
+            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }); // Color marrón
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+
+            const crownGeometry = new THREE.ConeGeometry(3, 8, 8); // Copa del árbol
+            const crownMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 }); // Color verde
+            const crown = new THREE.Mesh(crownGeometry, crownMaterial);
+            crown.position.y = 4; // Colocar la copa encima del tronco
+
+            const tree = new THREE.Group();
+            tree.add(trunk);
+            tree.add(crown);
+            return tree;
+        }
+
+        // Generar árboles a ambos lados de la calle
+        const trees = [];
+        const treeSpacing = 50; // Espacio entre árboles (aumentado)
+        for (let z = -400; z <= 400; z += treeSpacing) {
+            const treeLeft = createTree();
+            const scale = 0.8 + Math.random() * 0.4; // Tamaño aleatorio entre 0.8 y 1.2
+            treeLeft.scale.set(scale, scale, scale); // Aplicar escala aleatoria
+            treeLeft.position.set(-(streetWidth / 2 + 10), 0, z);
+            scene.add(treeLeft);
+            trees.push(treeLeft);
+
+            const treeRight = createTree();
+            const scaleRight = 3.8 + Math.random() * 0.4; // Tamaño aleatorio entre 0.8 y 1.2
+            treeRight.scale.set(scaleRight, scaleRight, scaleRight); // Aplicar escala aleatoria
+            treeRight.position.set(streetWidth / 2 + 10, 0, z);
+            scene.add(treeRight);
+            trees.push(treeRight);
+        }
+
+        // Iluminación
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(0, 100, 0);
+        scene.add(directionalLight);
+
+        // Posición de cámara
+        camera.position.set(0, 30, 0);
+        camera.lookAt(0, 0, 100);
+
+        // Control de movimiento
+        let cameraSpeed = 0;
+        const maxSpeed = 0.8;
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') cameraSpeed = maxSpeed;
+            if (e.key === 'ArrowDown') cameraSpeed = -maxSpeed;
         });
 
-        // Posicionar la cámara
-        camera.position.z = 15;
+        document.addEventListener('keyup', () => {
+            cameraSpeed = 0;
+        });
 
-        // Función de animación
+        // Detección de clics
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const infoDiv = document.getElementById('info');
+
+        function onMouseClick(event) {
+            // Calcular la posición del mouse en coordenadas normalizadas (-1 a 1)
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // Lanzar un rayo desde la cámara en la dirección del mouse
+            raycaster.setFromCamera(mouse, camera);
+
+            // Verificar colisiones con los edificios, farolas, carros y árboles
+            const intersects = raycaster.intersectObjects([...buildings, ...streetLights, ...cars, ...trees]);
+
+            if (intersects.length > 0) {
+                // Mostrar información del objeto seleccionado
+                const object = intersects[0].object;
+                infoDiv.style.display = 'block';
+                if (buildings.includes(object)) {
+                    infoDiv.innerHTML = `Edificio seleccionado:<br>
+                                        Altura: ${object.scale.y * 10} m<br>
+                                        Color: ${object.material.color.getHexString()}`;
+                } else if (streetLights.includes(object.parent)) {
+                    infoDiv.innerHTML = `Farola seleccionada:<br>
+                                        Color: Amarillo`;
+                } else if (cars.includes(object)) {
+                    infoDiv.innerHTML = `Carro seleccionado:<br>
+                                        Color: ${object.material.color.getHexString()}`;
+                } else if (trees.includes(object.parent)) {
+                    infoDiv.innerHTML = `Árbol seleccionado:<br>
+                                        Tipo: Árbol verde`;
+                }
+            } else {
+                infoDiv.style.display = 'none';
+            }
+        }
+
+        // Escuchar clics del mouse
+        window.addEventListener('click', onMouseClick, false);
+
+        // Animación
         function animate() {
             requestAnimationFrame(animate);
 
-            // Rotar la esfera
-            sphere.rotation.x += 0.01;
-            sphere.rotation.y += 0.01;
+            // Mover cámara
+            camera.position.z += cameraSpeed;
+
+            // Mantener foco de la cámara
+            camera.lookAt(camera.position.x, camera.position.y, camera.position.z + 100);
+
+            // Mover carros
+            cars.forEach(car => {
+                car.position.z += 0.1; // Mover hacia adelante
+                if (car.position.z > 400) car.position.z = -400; // Reiniciar posición
+            });
 
             renderer.render(scene, camera);
         }
 
-        // Iniciar la animación
-        animate();
-
-        // Manejar el redimensionamiento de la ventana
+        // Redimensionamiento
         window.addEventListener('resize', () => {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            renderer.setSize(width, height);
-            camera.aspect = width / height;
+            camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        animate();
     </script>
 </body>
 </html>
